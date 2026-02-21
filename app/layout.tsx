@@ -14,24 +14,21 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "SmartUdhar",
-  description: "Digital udhar ledger for shopkeepers",
-  manifest: "/manifest.json",
-  themeColor: "#0f172a",
-  icons: {
-    icon: [
-      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
-    ],
-  },
+  description: "Digital Udhar Ledger for Indian Shopkeepers",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#0f172a" />
+        <link rel="icon" href="/icon-192.png" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-100`}
       >
