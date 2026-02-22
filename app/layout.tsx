@@ -4,7 +4,6 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "SmartUdhar",
   description: "Digital Udhar Ledger for Indian Shopkeepers",
-  manifest: "/manifest.webmanifest",
   icons: {
     icon: "/icon.png",
     apple: "/apple-icon.png",

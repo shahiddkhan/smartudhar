@@ -5,8 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "SmartUdhar",
     short_name: "SmartUdhar",
     description: "Digital Udhar Ledger for Indian Shopkeepers",
-    start_url: "/?v=3",
-    scope: "/",
+    start_url: "/",
     display: "standalone",
     background_color: "#f1f5f9",
     theme_color: "#0f172a",
@@ -16,6 +15,7 @@ export default function manifest(): MetadataRoute.Manifest {
         src: "/icon.png",
         sizes: "512x512",
         type: "image/png",
+        purpose: "maskable",
       },
       {
         src: "/icon.png",
