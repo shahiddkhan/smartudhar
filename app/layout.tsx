@@ -15,6 +15,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "SmartUdhar",
   description: "Digital Udhar Ledger for Indian Shopkeepers",
+  themeColor: "#0f172a",
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/icon-192.png",
+  },
 };
 
 export default function RootLayout({
@@ -24,11 +29,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        {/* <link rel="manifest" href="/manifest.json" /> */}
-        <meta name="theme-color" content="#0f172a" />
-        <link rel="icon" href="/icon-192.png" />
-      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-100`}
       >
