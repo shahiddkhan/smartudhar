@@ -1,196 +1,68 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
 
 interface Customer {
   id: number;
   name: string;
-  phone: string | null;
+  phone: string;
 }
 
 export default function CustomersPage() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(true);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [adding, setAdding] = useState(false);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
-    loadCustomers();
+    fetchCustomers();
   }, []);
 
-  const loadCustomers = async () => {
-    const { data: sessionData } = await supabase.auth.getSession();
-
-    if (!sessionData.session) {
-      router.push("/");
-      return;
-    }
-
-    const user = sessionData.session.user;
-
-    const { data } = await supabase
-      .from("customers")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("is_archived", false)
-      .order("id", { ascending: false });
-
-    if (data) setCustomers(data);
-    setLoading(false);
-  };
-
-  const addCustomer = async () => {
-    if (!name.trim()) {
-      alert("Customer name required");
-      return;
-    }
-
-    setAdding(true);
-
-    const { data: sessionData } = await supabase.auth.getSession();
-    const user = sessionData.session?.user;
-
-    if (!user) return;
-
+  async function fetchCustomers() {
     const { data, error } = await supabase
       .from("customers")
-      .insert([
-        {
-          name: name.trim(),
-          phone: phone.trim() || null,
-          user_id: user.id,
-        },
-      ])
-      .select()
-      .single();
+      .select("*")
+      .order("id", { ascending: false });
 
-    setAdding(false);
-
-    if (error) {
-      alert(error.message);
-    } else if (data) {
-      setCustomers((prev) => [data, ...prev]);
-      setName("");
-      setPhone("");
+    if (!error && data) {
+      setCustomers(data);
     }
-  };
-
-  const archiveCustomer = async (id: number) => {
-    const confirmArchive = confirm("Archive karna hai?");
-    if (!confirmArchive) return;
-
-    const { error } = await supabase
-      .from("customers")
-      .update({ is_archived: true })
-      .eq("id", id);
-
-    if (!error) {
-      setCustomers((prev) => prev.filter((c) => c.id !== id));
-    }
-  };
-
-  if (loading) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-slate-100">
-        <p className="text-slate-600 font-medium">Loading...</p>
-      </main>
-    );
   }
 
+  const filteredCustomers = customers.filter((customer) =>
+    customer.name.toLowerCase().includes(search.toLowerCase()) ||
+    customer.phone.includes(search)
+  );
+
   return (
-    <main className="min-h-screen bg-slate-100 py-10 px-4">
-      <div className="max-w-xl mx-auto space-y-8">
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">Customers</h1>
 
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Customers
-          </h1>
-          <p className="text-sm text-slate-600">
-            Manage your udhar customers
-          </p>
-        </div>
+      {/* 🔍 Search Box */}
+      <input
+        type="text"
+        placeholder="Search by name or phone..."
+        className="w-full p-2 mb-4 border rounded-lg"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
-
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Enter customer name"
-            className="w-full p-3 rounded-xl border border-slate-300 
-            text-slate-900 font-medium
-            placeholder:text-slate-500
-            focus:outline-none focus:ring-2 focus:ring-slate-900"
-          />
-
-          <input
-            type="tel"
-            value={phone}
-            onChange={(e) =>
-              setPhone(e.target.value.replace(/\D/g, ""))
-            }
-            placeholder="Enter phone number (optional)"
-            maxLength={10}
-            className="w-full p-3 rounded-xl border border-slate-300 
-            text-slate-900 font-medium
-            placeholder:text-slate-500
-            focus:outline-none focus:ring-2 focus:ring-slate-900"
-          />
-
-          <button
-            onClick={addCustomer}
-            disabled={adding}
-            className="w-full bg-slate-900 text-white py-3 rounded-xl font-semibold hover:bg-black transition disabled:opacity-50"
+      <div className="space-y-3">
+        {filteredCustomers.map((customer) => (
+          <Link
+            key={customer.id}
+            href={`/dashboard/customers/${customer.id}`}
+            className="block p-3 bg-white shadow rounded-lg"
           >
-            {adding ? "Adding..." : "Add Customer"}
-          </button>
-        </div>
+            <p className="font-semibold">{customer.name}</p>
+            <p className="text-gray-500">{customer.phone}</p>
+          </Link>
+        ))}
 
-        <div className="space-y-4">
-          {customers.length === 0 ? (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center text-slate-500">
-              No customers yet
-            </div>
-          ) : (
-            customers.map((c) => (
-              <div
-                key={c.id}
-                className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center"
-              >
-                <div
-                  onClick={() =>
-                    router.push(`/dashboard/customers/${c.id}`)
-                  }
-                  className="cursor-pointer"
-                >
-                  <p className="font-semibold text-slate-900">
-                    {c.name}
-                  </p>
-                  {c.phone && (
-                    <p className="text-sm text-slate-600">
-                      {c.phone}
-                    </p>
-                  )}
-                </div>
-
-                <button
-                  onClick={() => archiveCustomer(c.id)}
-                  className="px-3 py-1.5 text-xs font-semibold 
-                  bg-red-100 text-red-600 rounded-lg 
-                  hover:bg-red-200 transition"
-                >
-                  Archive
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-
+        {filteredCustomers.length === 0 && (
+          <p className="text-gray-500 text-center">No customers found</p>
+        )}
       </div>
-    </main>
+    </div>
   );
 }
