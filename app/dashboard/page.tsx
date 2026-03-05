@@ -27,7 +27,6 @@ export default function DashboardPage() {
 
     const user = sessionData.session.user;
 
-    // Customers count
     const { data: customers } = await supabase
       .from("customers")
       .select("id")
@@ -36,7 +35,6 @@ export default function DashboardPage() {
 
     setTotalCustomers(customers?.length || 0);
 
-    // Transactions
     const { data: transactions } = await supabase
       .from("transactions")
       .select("amount,type")
@@ -62,6 +60,10 @@ export default function DashboardPage() {
     setLoading(false);
   };
 
+  const formatMoney = (amount: number) => {
+    return Number(amount).toLocaleString("en-IN");
+  };
+
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-slate-100">
@@ -71,24 +73,17 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 py-10 px-4">
-      <div className="max-w-xl mx-auto space-y-8">
-
+    <main className="min-h-screen w-full bg-slate-100 py-8 px-4">
+      <div className="w-full max-w-md mx-auto space-y-8">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Dashboard
-          </h1>
-          <p className="text-sm text-slate-600">
-            SmartUdhar Overview
-          </p>
+          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+          <p className="text-sm text-slate-600">SmartUdhar Overview</p>
         </div>
 
-        {/* Cards */}
         <div className="grid grid-cols-2 gap-4">
-
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
             <p className="text-sm text-slate-500">Customers</p>
-            <p className="text-xl font-bold text-slate-900">
+            <p className="text-xl font-bold text-slate-900 break-words">
               {totalCustomers}
             </p>
           </div>
@@ -96,28 +91,27 @@ export default function DashboardPage() {
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
             <p className="text-sm text-slate-500">Total Balance</p>
             <p
-              className={`text-xl font-bold ${
+              className={`text-xl font-bold break-words ${
                 balance > 0 ? "text-red-500" : "text-green-600"
               }`}
             >
-              ₹ {balance}
+              ₹ {formatMoney(balance)}
             </p>
           </div>
 
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
             <p className="text-sm text-slate-500">Udhar Diya</p>
-            <p className="text-xl font-bold text-red-500">
-              ₹ {totalCredit}
+            <p className="text-xl font-bold text-red-500 break-words">
+              ₹ {formatMoney(totalCredit)}
             </p>
           </div>
 
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
             <p className="text-sm text-slate-500">Paisa Mila</p>
-            <p className="text-xl font-bold text-green-600">
-              ₹ {totalDebit}
+            <p className="text-xl font-bold text-green-600 break-words">
+              ₹ {formatMoney(totalDebit)}
             </p>
           </div>
-
         </div>
 
         <button
@@ -126,7 +120,6 @@ export default function DashboardPage() {
         >
           Manage Customers
         </button>
-
       </div>
     </main>
   );

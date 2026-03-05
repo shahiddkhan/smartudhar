@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import jsPDF from "jspdf";
 
 interface Customer {
   id: number;
@@ -37,6 +36,9 @@ export default function CustomerDetailPage() {
     }
   }, [customerId]);
 
+  const formatMoney = (value: number) =>
+    Number(value).toLocaleString("en-IN");
+
   const fetchCustomer = async () => {
     const { data } = await supabase
       .from("customers")
@@ -68,14 +70,29 @@ export default function CustomerDetailPage() {
   };
 
   const addTransaction = async (type: "credit" | "debit") => {
-    if (!amount || Number(amount) <= 0) return;
+    const numericAmount = Number(amount);
+
+    if (!numericAmount || numericAmount <= 0) {
+      alert("Enter valid amount");
+      return;
+    }
+
+    if (numericAmount > 1000000) {
+      alert("Maximum allowed is ₹10,00,000");
+      return;
+    }
+
+    if (type === "debit" && numericAmount > balance) {
+      alert("Cannot clear more than current udhar");
+      return;
+    }
 
     const { data: sessionData } = await supabase.auth.getUser();
     const user = sessionData.user;
 
     await supabase.from("transactions").insert([
       {
-        amount: Number(amount),
+        amount: numericAmount,
         type,
         description,
         customer_id: customerId,
@@ -88,110 +105,54 @@ export default function CustomerDetailPage() {
     fetchTransactions();
   };
 
-  const exportPDF = () => {
-    if (!customer) return;
-
-    const doc = new jsPDF();
-
-    doc.setFontSize(18);
-    doc.text("SmartUdhar Ledger", 14, 20);
-
-    doc.setFontSize(12);
-    doc.text(`Customer: ${customer.name}`, 14, 30);
-    doc.text(
-      `Generated: ${new Date().toLocaleDateString("en-IN")}`,
-      14,
-      38
-    );
-
-    let y = 50;
-
-    doc.setFontSize(11);
-    doc.text("Date", 14, y);
-    doc.text("Type", 50, y);
-    doc.text("Amount", 90, y);
-    doc.text("Balance", 130, y);
-
-    y += 8;
-
-    let running = 0;
-
-    transactions
-      .slice()
-      .reverse()
-      .forEach((tx) => {
-        running =
-          tx.type === "credit"
-            ? running + Number(tx.amount)
-            : running - Number(tx.amount);
-
-        doc.text(
-          new Date(tx.created_at).toLocaleDateString("en-IN"),
-          14,
-          y
-        );
-
-        doc.text(
-          tx.type === "credit" ? "Udhar" : "Mila",
-          50,
-          y
-        );
-
-        doc.text(`₹ ${tx.amount}`, 90, y);
-        doc.text(`₹ ${running}`, 130, y);
-
-        y += 8;
-      });
-
-    doc.setFontSize(14);
-    doc.text(`Final Balance: ₹ ${balance}`, 14, y + 10);
-
-    doc.save(`${customer.name}-ledger.pdf`);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString("en-IN", {
+  const formatDate = (dateString: string) =>
+    new Date(dateString).toLocaleString("en-IN", {
       day: "2-digit",
       month: "short",
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
     });
-  };
 
   return (
-    <div className="min-h-screen bg-slate-100 pb-20">
-      {/* Header */}
-      <div className="sticky top-0 bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-xl mx-auto px-4 py-4 flex justify-between items-center">
+    <div className="min-h-screen bg-slate-100 pb-24">
+
+      {/* HEADER */}
+      <div className="sticky top-0 bg-white border-b shadow-sm">
+        <div className="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
+
           <button
             onClick={() => router.push("/dashboard/customers")}
-            className="px-4 py-2 text-sm font-semibold bg-slate-900 text-white rounded-lg hover:bg-black transition"
+            className="text-slate-900 text-sm font-semibold"
           >
             ← Back
           </button>
 
           <div className="text-right">
-            <p className="text-xs text-slate-500 uppercase">
-              Total Balance
-            </p>
+            <p className="text-xs text-slate-500 uppercase">Balance</p>
+
             <p
-              className={`text-lg font-bold ${
+              className={`text-xl font-bold ${
                 balance > 0 ? "text-red-500" : "text-green-600"
               }`}
             >
-              ₹ {balance}
+              ₹ {formatMoney(balance)}
             </p>
+
           </div>
         </div>
       </div>
 
-      <div className="max-w-xl mx-auto px-4 py-6 space-y-6">
-        {/* Add Entry */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <p className="text-lg font-semibold text-slate-900 mb-4">
+      <div className="max-w-md mx-auto px-4 py-6 space-y-6">
+
+        {/* ADD ENTRY */}
+        <div className="bg-white p-6 rounded-3xl shadow-md">
+
+          <p className="text-sm text-slate-500">Customer</p>
+
+          <h2 className="text-xl font-bold text-slate-900 mb-5">
             {customer?.name}
-          </p>
+          </h2>
 
           <input
             type="number"
@@ -200,100 +161,108 @@ export default function CustomerDetailPage() {
               setAmount(e.target.value.replace(/[^0-9]/g, ""))
             }
             placeholder="Enter amount"
-            className="w-full p-3 mb-3 rounded-xl border border-slate-300 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-slate-900"
+            className="w-full p-4 mb-4 rounded-2xl bg-slate-50 border border-slate-200
+            text-lg font-semibold text-slate-900 placeholder:text-slate-400
+            focus:outline-none focus:ring-2 focus:ring-slate-900"
           />
 
           <input
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Note (optional)"
-            className="w-full p-3 mb-4 rounded-xl border border-slate-300 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-slate-900"
+            placeholder="Add note (optional)"
+            className="w-full p-4 mb-5 rounded-2xl bg-slate-50 border border-slate-200
+            text-slate-900 placeholder:text-slate-400
+            focus:outline-none focus:ring-2 focus:ring-slate-900"
           />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
+
             <button
               onClick={() => addTransaction("credit")}
-              className="bg-red-500 text-white py-3 rounded-xl font-semibold hover:bg-red-600 transition"
+              className="bg-red-500 text-white py-4 rounded-2xl font-semibold active:scale-95 transition"
             >
-              Udhar Diya
+              + Udhar Liya
             </button>
 
             <button
               onClick={() => addTransaction("debit")}
-              className="bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 transition"
+              className="bg-green-600 text-white py-4 rounded-2xl font-semibold active:scale-95 transition"
             >
-              Paisa Mila
+              − Udhar Clear
             </button>
+
           </div>
         </div>
 
-        {/* Export */}
-        <button
-          onClick={exportPDF}
-          className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition"
-        >
-          Export PDF
-        </button>
+        {/* LEDGER */}
+        <div className="space-y-3">
 
-        {/* Ledger */}
-        <div className="space-y-4">
           {transactions.length === 0 ? (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 text-center text-slate-500">
+            <div className="bg-white p-6 rounded-2xl text-center text-slate-500">
               No transactions yet
             </div>
           ) : (
             transactions.map((tx, index) => {
+
               const runningBalance = transactions
                 .slice(index)
-                .reduce((acc, t) => {
-                  return t.type === "credit"
-                    ? acc + Number(t.amount)
-                    : acc - Number(t.amount);
-                }, 0);
+                .reduce(
+                  (acc, t) =>
+                    t.type === "credit"
+                      ? acc + Number(t.amount)
+                      : acc - Number(t.amount),
+                  0
+                );
 
               return (
                 <div
                   key={tx.id}
-                  className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"
+                  className="bg-white p-4 rounded-2xl shadow-sm flex justify-between"
                 >
-                  <div className="flex justify-between">
-                    <div>
-                      <p className="text-xs text-slate-500 mb-1">
-                        {formatDate(tx.created_at)}
-                      </p>
-                      <p className="font-semibold text-slate-900">
-                        {tx.type === "credit"
-                          ? "Udhar Diya"
-                          : "Paisa Mila"}
-                      </p>
-                      {tx.description && (
-                        <p className="text-sm text-slate-500">
-                          {tx.description}
-                        </p>
-                      )}
-                    </div>
 
-                    <div className="text-right">
-                      <p
-                        className={`text-lg font-bold ${
-                          tx.type === "credit"
-                            ? "text-red-500"
-                            : "text-green-600"
-                        }`}
-                      >
-                        {tx.type === "credit" ? "+" : "-"} ₹{" "}
-                        {tx.amount}
+                  <div>
+                    <p className="text-xs text-slate-500">
+                      {formatDate(tx.created_at)}
+                    </p>
+
+                    <p className="font-semibold text-slate-900">
+                      {tx.type === "credit"
+                        ? "Udhar Liya"
+                        : "Udhar Clear"}
+                    </p>
+
+                    {tx.description && (
+                      <p className="text-sm text-slate-500">
+                        {tx.description}
                       </p>
-                      <p className="text-xs text-slate-500">
-                        Balance: ₹ {runningBalance}
-                      </p>
-                    </div>
+                    )}
                   </div>
+
+                  <div className="text-right">
+
+                    <p
+                      className={`text-lg font-bold ${
+                        tx.type === "credit"
+                          ? "text-red-500"
+                          : "text-green-600"
+                      }`}
+                    >
+                      {tx.type === "credit" ? "+" : "-"} ₹{" "}
+                      {formatMoney(tx.amount)}
+                    </p>
+
+                    <p className="text-xs text-slate-500">
+                      ₹ {formatMoney(runningBalance)}
+                    </p>
+
+                  </div>
+
                 </div>
               );
             })
           )}
+
         </div>
       </div>
     </div>
