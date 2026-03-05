@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
 
 interface Customer {
   id: number;
@@ -13,10 +12,11 @@ interface Customer {
 }
 
 export default function CustomersPage() {
-  const router = useRouter();
-
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
+
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
 
   useEffect(() => {
     fetchCustomers();
@@ -36,7 +36,51 @@ export default function CustomersPage() {
     }
   }
 
+  async function addCustomer() {
+    const customerName = name.trim().toLowerCase();
+
+    if (!customerName) {
+      alert("Enter customer name");
+      return;
+    }
+
+    const { data: existing } = await supabase
+      .from("customers")
+      .select("id")
+      .ilike("name", customerName);
+
+    if (existing && existing.length > 0) {
+      alert("Customer with this name already exists");
+      return;
+    }
+
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
+
+    const { error } = await supabase.from("customers").insert([
+      {
+        name: name.trim(),
+        phone: phone.trim(),
+        user_id: user?.id,
+      },
+    ]);
+
+    if (error) {
+      alert("Could not add customer");
+      return;
+    }
+
+    setName("");
+    setPhone("");
+
+    fetchCustomers();
+  }
+
   async function archiveCustomer(id: number) {
+    const confirmArchive = confirm("Archive this customer?");
+
+    if (!confirmArchive) return;
+
     await supabase
       .from("customers")
       .update({ is_archived: true })
@@ -46,12 +90,12 @@ export default function CustomersPage() {
   }
 
   const filteredCustomers = customers.filter((customer) => {
-    const name = customer.name ?? "";
-    const phone = customer.phone ?? "";
+    const n = customer.name ?? "";
+    const p = customer.phone ?? "";
 
     return (
-      name.toLowerCase().includes(search.toLowerCase()) ||
-      phone.includes(search)
+      n.toLowerCase().includes(search.toLowerCase()) ||
+      p.includes(search)
     );
   });
 
@@ -59,23 +103,50 @@ export default function CustomersPage() {
     <div className="min-h-screen bg-slate-100 pb-28">
       <div className="max-w-md mx-auto px-4 py-6">
 
-        {/* Header */}
         <h1 className="text-2xl font-bold text-slate-900 mb-6">
           Customers
         </h1>
 
-        {/* Search */}
+        {/* ADD CUSTOMER */}
+        <div className="bg-white p-4 rounded-2xl shadow-sm mb-6">
+          <p className="font-semibold mb-3 text-slate-900">
+            New Customer
+          </p>
+
+          <input
+            type="text"
+            placeholder="Customer name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full p-3 mb-3 border rounded-xl text-slate-900"
+          />
+
+          <input
+            type="text"
+            placeholder="Phone (optional)"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="w-full p-3 mb-3 border rounded-xl text-slate-900"
+          />
+
+          <button
+            onClick={addCustomer}
+            className="w-full bg-slate-900 text-white py-3 rounded-xl font-semibold"
+          >
+            Add Customer
+          </button>
+        </div>
+
+        {/* SEARCH */}
         <input
           type="text"
           placeholder="Search customer..."
-          className="w-full p-4 mb-6 rounded-2xl bg-white border border-slate-200 shadow-sm 
-          text-slate-900 placeholder:text-slate-500
-          focus:outline-none focus:ring-2 focus:ring-slate-900"
+          className="w-full p-4 mb-6 rounded-2xl bg-white border border-slate-200 shadow-sm text-slate-900"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
 
-        {/* Customer List */}
+        {/* CUSTOMER LIST */}
         <div className="space-y-3">
           {filteredCustomers.length === 0 ? (
             <div className="bg-white p-6 rounded-2xl text-center text-slate-500 shadow-sm">
@@ -85,39 +156,34 @@ export default function CustomersPage() {
             filteredCustomers.map((customer) => (
               <div
                 key={customer.id}
-                className="bg-white p-4 rounded-2xl shadow-sm flex justify-between items-center"
+                className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm"
               >
                 <Link
                   href={`/dashboard/customers/${customer.id}`}
                   className="flex-1"
                 >
-                  <p className="font-semibold text-slate-900 text-base">
+                  <p className="font-semibold text-slate-900">
                     {customer.name}
                   </p>
-                  <p className="text-sm text-slate-500 mt-1">
+
+                  <p className="text-sm text-slate-500">
                     {customer.phone}
                   </p>
                 </Link>
 
+                {/* ARCHIVE ICON */}
                 <button
                   onClick={() => archiveCustomer(customer.id)}
-                  className="ml-3 text-xs font-semibold text-red-500"
+                  className="ml-3 text-red-500 hover:scale-110 transition"
                 >
-                  Archive
+                  📥
                 </button>
+
               </div>
             ))
           )}
         </div>
       </div>
-
-      {/* Floating Add Customer Button */}
-      <button
-        onClick={() => router.push("/dashboard/customers/add")}
-        className="fixed bottom-20 right-6 bg-slate-900 text-white w-14 h-14 rounded-full shadow-lg text-2xl flex items-center justify-center active:scale-95 transition"
-      >
-        +
-      </button>
     </div>
   );
 }
