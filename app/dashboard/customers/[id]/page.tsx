@@ -36,8 +36,7 @@ export default function CustomerDetailPage() {
     }
   }, [customerId]);
 
-  const formatMoney = (value: number) =>
-    Number(value).toLocaleString("en-IN");
+  const formatMoney = (value: number) => Number(value).toLocaleString("en-IN");
 
   const fetchCustomer = async () => {
     const { data } = await supabase
@@ -77,16 +76,6 @@ export default function CustomerDetailPage() {
       return;
     }
 
-    if (numericAmount > 1000000) {
-      alert("Maximum allowed is ₹10,00,000");
-      return;
-    }
-
-    if (type === "debit" && numericAmount > balance) {
-      alert("Cannot clear more than current udhar");
-      return;
-    }
-
     const { data: sessionData } = await supabase.auth.getUser();
     const user = sessionData.user;
 
@@ -102,6 +91,7 @@ export default function CustomerDetailPage() {
 
     setAmount("");
     setDescription("");
+
     fetchTransactions();
   };
 
@@ -116,11 +106,10 @@ export default function CustomerDetailPage() {
 
   return (
     <div className="min-h-screen bg-slate-100 pb-24">
-
       {/* HEADER */}
+
       <div className="sticky top-0 bg-white border-b shadow-sm">
         <div className="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
-
           <button
             onClick={() => router.push("/dashboard/customers")}
             className="text-slate-900 text-sm font-semibold"
@@ -138,16 +127,14 @@ export default function CustomerDetailPage() {
             >
               ₹ {formatMoney(balance)}
             </p>
-
           </div>
         </div>
       </div>
 
       <div className="max-w-md mx-auto px-4 py-6 space-y-6">
-
         {/* ADD ENTRY */}
-        <div className="bg-white p-6 rounded-3xl shadow-md">
 
+        <div className="bg-white p-6 rounded-3xl shadow-md">
           <p className="text-sm text-slate-500">Customer</p>
 
           <h2 className="text-xl font-bold text-slate-900 mb-5">
@@ -157,13 +144,10 @@ export default function CustomerDetailPage() {
           <input
             type="number"
             value={amount}
-            onChange={(e) =>
-              setAmount(e.target.value.replace(/[^0-9]/g, ""))
-            }
+            onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
             placeholder="Enter amount"
             className="w-full p-4 mb-4 rounded-2xl bg-slate-50 border border-slate-200
-            text-lg font-semibold text-slate-900 placeholder:text-slate-400
-            focus:outline-none focus:ring-2 focus:ring-slate-900"
+            text-lg font-semibold text-slate-900 placeholder:text-slate-400"
           />
 
           <input
@@ -171,98 +155,57 @@ export default function CustomerDetailPage() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Add note (optional)"
-            className="w-full p-4 mb-5 rounded-2xl bg-slate-50 border border-slate-200
-            text-slate-900 placeholder:text-slate-400
-            focus:outline-none focus:ring-2 focus:ring-slate-900"
+            className="w-full p-4 mb-5 rounded-2xl bg-slate-50 border border-slate-200"
           />
 
           <div className="grid grid-cols-2 gap-4">
-
             <button
               onClick={() => addTransaction("credit")}
-              className="bg-red-500 text-white py-4 rounded-2xl font-semibold active:scale-95 transition"
+              className="bg-red-500 text-white py-4 rounded-2xl font-semibold"
             >
               + Udhar Liya
             </button>
 
             <button
               onClick={() => addTransaction("debit")}
-              className="bg-green-600 text-white py-4 rounded-2xl font-semibold active:scale-95 transition"
+              className="bg-green-600 text-white py-4 rounded-2xl font-semibold"
             >
-              − Udhar Clear
+              − Udhar Diya
             </button>
-
           </div>
         </div>
 
         {/* LEDGER */}
+
         <div className="space-y-3">
+          {transactions.map((tx) => (
+            <div
+              key={tx.id}
+              className="bg-white p-4 rounded-2xl shadow-sm flex justify-between"
+            >
+              <div>
+                <p className="text-xs text-slate-500">
+                  {formatDate(tx.created_at)}
+                </p>
 
-          {transactions.length === 0 ? (
-            <div className="bg-white p-6 rounded-2xl text-center text-slate-500">
-              No transactions yet
+                <p className="font-semibold text-slate-900">
+                  {tx.type === "credit" ? "Udhar Liya" : "Udhar Diya"}
+                </p>
+
+                {tx.description && (
+                  <p className="text-sm text-slate-500">{tx.description}</p>
+                )}
+              </div>
+
+              <p
+                className={`text-lg font-bold ${
+                  tx.type === "credit" ? "text-red-500" : "text-green-600"
+                }`}
+              >
+                {tx.type === "credit" ? "+" : "-"} ₹ {formatMoney(tx.amount)}
+              </p>
             </div>
-          ) : (
-            transactions.map((tx, index) => {
-
-              const runningBalance = transactions
-                .slice(index)
-                .reduce(
-                  (acc, t) =>
-                    t.type === "credit"
-                      ? acc + Number(t.amount)
-                      : acc - Number(t.amount),
-                  0
-                );
-
-              return (
-                <div
-                  key={tx.id}
-                  className="bg-white p-4 rounded-2xl shadow-sm flex justify-between"
-                >
-
-                  <div>
-                    <p className="text-xs text-slate-500">
-                      {formatDate(tx.created_at)}
-                    </p>
-
-                    <p className="font-semibold text-slate-900">
-                      {tx.type === "credit"
-                        ? "Udhar Liya"
-                        : "Udhar Clear"}
-                    </p>
-
-                    {tx.description && (
-                      <p className="text-sm text-slate-500">
-                        {tx.description}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="text-right">
-
-                    <p
-                      className={`text-lg font-bold ${
-                        tx.type === "credit"
-                          ? "text-red-500"
-                          : "text-green-600"
-                      }`}
-                    >
-                      {tx.type === "credit" ? "+" : "-"} ₹{" "}
-                      {formatMoney(tx.amount)}
-                    </p>
-
-                    <p className="text-xs text-slate-500">
-                      ₹ {formatMoney(runningBalance)}
-                    </p>
-
-                  </div>
-
-                </div>
-              );
-            })
-          )}
-
+          ))}
         </div>
       </div>
     </div>

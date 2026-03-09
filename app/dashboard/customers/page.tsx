@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import ModernCard from "@/app/components/ModernCard";
 
 interface Customer {
   id: number;
@@ -13,14 +14,17 @@ interface Customer {
 }
 
 export default function CustomersPage() {
-
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
 
-  const [phoneInputCustomer, setPhoneInputCustomer] = useState<Customer | null>(null);
+  const [totalUdhar, setTotalUdhar] = useState(0);
+
+  const [phoneInputCustomer, setPhoneInputCustomer] = useState<Customer | null>(
+    null,
+  );
   const [newPhone, setNewPhone] = useState("");
 
   const [flashCustomerId, setFlashCustomerId] = useState<number | null>(null);
@@ -30,7 +34,6 @@ export default function CustomersPage() {
   }, []);
 
   async function fetchCustomers() {
-
     const { data: customersData } = await supabase
       .from("customers")
       .select("*")
@@ -44,7 +47,6 @@ export default function CustomersPage() {
 
     const updatedCustomers = await Promise.all(
       customersData.map(async (customer) => {
-
         const { data: transactions } = await supabase
           .from("transactions")
           .select("amount,type")
@@ -60,14 +62,23 @@ export default function CustomersPage() {
         }
 
         return { ...customer, balance };
-      })
+      }),
     );
 
     setCustomers(updatedCustomers);
+
+    let total = 0;
+
+    updatedCustomers.forEach((c) => {
+      if ((c.balance ?? 0) > 0) {
+        total += c.balance ?? 0;
+      }
+    });
+
+    setTotalUdhar(total);
   }
 
   async function addCustomer() {
-
     const customerName = name.trim().toLowerCase();
 
     if (!customerName) {
@@ -88,15 +99,13 @@ export default function CustomersPage() {
     const { data: userData } = await supabase.auth.getUser();
     const user = userData.user;
 
-    const { error } = await supabase
-      .from("customers")
-      .insert([
-        {
-          name: name.trim(),
-          phone: phone.trim(),
-          user_id: user?.id
-        }
-      ]);
+    const { error } = await supabase.from("customers").insert([
+      {
+        name: name.trim(),
+        phone: phone.trim(),
+        user_id: user?.id,
+      },
+    ]);
 
     if (error) {
       alert("Could not add customer");
@@ -110,21 +119,15 @@ export default function CustomersPage() {
   }
 
   async function archiveCustomer(id: number, customerName: string) {
-
     const confirmArchive = confirm(`Archive ${customerName}?`);
-
     if (!confirmArchive) return;
 
-    await supabase
-      .from("customers")
-      .update({ is_archived: true })
-      .eq("id", id);
+    await supabase.from("customers").update({ is_archived: true }).eq("id", id);
 
     fetchCustomers();
   }
 
   function sendWhatsApp(customer: Customer) {
-
     if (!customer.phone) {
       setPhoneInputCustomer(customer);
       return;
@@ -132,19 +135,22 @@ export default function CustomersPage() {
 
     const amount = customer.balance ?? 0;
 
-    const message =
-`Hello ${customer.name}
-Aapka udhar ₹${amount} pending hai
-Thanks`;
+    const message = `Hello ${customer.name} bhai,
 
-    const url =
-      `https://wa.me/${customer.phone}?text=${encodeURIComponent(message)}`;
+Aapka ₹${amount} udhar baaki hai.
+
+Jab ho sake payment kar dena.
+
+Thank you.`;
+
+    const url = `https://wa.me/${customer.phone}?text=${encodeURIComponent(
+      message,
+    )}`;
 
     window.open(url, "_blank");
   }
 
   async function savePhoneAndSend() {
-
     if (!phoneInputCustomer) return;
 
     await supabase
@@ -154,7 +160,7 @@ Thanks`;
 
     const updatedCustomer = {
       ...phoneInputCustomer,
-      phone: newPhone
+      phone: newPhone,
     };
 
     setPhoneInputCustomer(null);
@@ -164,25 +170,19 @@ Thanks`;
   }
 
   function cancelPhoneEntry() {
-
     if (phoneInputCustomer) {
-
       setFlashCustomerId(phoneInputCustomer.id);
 
       setTimeout(() => {
         setFlashCustomerId(null);
       }, 900);
-
     }
 
     setPhoneInputCustomer(null);
   }
 
   function remindAllDebtors() {
-
-    const debtors = customers.filter(
-      (c) => (c.balance ?? 0) > 0 && c.phone
-    );
+    const debtors = customers.filter((c) => (c.balance ?? 0) > 0 && c.phone);
 
     if (debtors.length === 0) {
       alert("No customers with pending udhar");
@@ -190,14 +190,17 @@ Thanks`;
     }
 
     debtors.forEach((customer) => {
+      const message = `Hello ${customer.name} bhai,
 
-      const message =
-`Hello ${customer.name}
-Aapka udhar ₹${customer.balance} pending hai
-Thanks`;
+Aapka ₹${customer.balance} udhar baaki hai.
 
-      const url =
-        `https://wa.me/${customer.phone}?text=${encodeURIComponent(message)}`;
+Jab ho sake payment kar dena.
+
+Thank you.`;
+
+      const url = `https://wa.me/${customer.phone}?text=${encodeURIComponent(
+        message,
+      )}`;
 
       window.open(url, "_blank");
     });
@@ -207,22 +210,13 @@ Thanks`;
     const n = customer.name ?? "";
     const p = customer.phone ?? "";
 
-    return (
-      n.toLowerCase().includes(search.toLowerCase()) ||
-      p.includes(search)
-    );
+    return n.toLowerCase().includes(search.toLowerCase()) || p.includes(search);
   });
 
   return (
     <div className="min-h-screen bg-slate-100 pb-28">
-
       <div className="max-w-md mx-auto px-4 py-6">
-
-        <h1 className="text-2xl font-bold text-slate-900 mb-4">
-          Customers
-        </h1>
-
-        {/* REMIND ALL BUTTON */}
+        <h1 className="text-2xl font-bold text-slate-900 mb-4">Customers</h1>
 
         <button
           onClick={remindAllDebtors}
@@ -231,13 +225,10 @@ Thanks`;
           Remind All Debtors
         </button>
 
-        {/* ADD CUSTOMER */}
+        <ModernCard title="Total Udhar Baaki" value={`₹ ${totalUdhar}`} />
 
         <div className="bg-white p-4 rounded-2xl shadow-sm mb-6">
-
-          <p className="font-semibold mb-3 text-slate-900">
-            New Customer
-          </p>
+          <p className="font-semibold mb-3 text-slate-900">New Customer</p>
 
           <input
             type="text"
@@ -261,10 +252,7 @@ Thanks`;
           >
             Add Customer
           </button>
-
         </div>
-
-        {/* SEARCH */}
 
         <input
           type="text"
@@ -274,18 +262,14 @@ Thanks`;
           onChange={(e) => setSearch(e.target.value)}
         />
 
-        {/* CUSTOMER LIST */}
-
         <div className="space-y-3">
-
           {filteredCustomers.map((customer) => (
-
             <div
               key={customer.id}
-              className={`grid grid-cols-4 items-center p-4 rounded-2xl shadow-sm transition
-              ${flashCustomerId === customer.id ? "bg-red-200" : "bg-white"}`}
+              className={`grid grid-cols-4 items-center p-4 rounded-2xl shadow-sm transition ${
+                flashCustomerId === customer.id ? "bg-red-200" : "bg-white"
+              }`}
             >
-
               <Link
                 href={`/dashboard/customers/${customer.id}`}
                 className="font-semibold text-slate-900"
@@ -316,23 +300,14 @@ Thanks`;
               >
                 📥
               </button>
-
             </div>
-
           ))}
-
         </div>
-
       </div>
 
-      {/* PHONE INPUT POPUP */}
-
       {phoneInputCustomer && (
-
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-
           <div className="bg-white w-[350px] rounded-3xl p-6 shadow-xl">
-
             <h2 className="text-lg font-bold text-slate-900 mb-4">
               Enter WhatsApp number
             </h2>
@@ -350,7 +325,6 @@ Thanks`;
             />
 
             <div className="flex gap-3">
-
               <button
                 onClick={cancelPhoneEntry}
                 className="flex-1 bg-slate-100 text-slate-900 rounded-xl py-3 font-semibold hover:bg-red-500 hover:text-white transition"
@@ -364,15 +338,10 @@ Thanks`;
               >
                 Save & Send
               </button>
-
             </div>
-
           </div>
-
         </div>
-
       )}
-
     </div>
   );
 }
