@@ -22,6 +22,18 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     };
 
     restoreSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (!session) {
+          router.push("/");
+        }
+      },
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, [router]);
 
   const logout = async () => {
@@ -57,8 +69,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-slate-100 pb-16">
-      {/* TOP BAR */}
-
       <div className="bg-white border-b border-slate-200 px-4 py-3 flex justify-between items-center sticky top-0 z-50">
         <h1
           onClick={() => router.push("/dashboard")}
@@ -73,8 +83,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       </div>
 
       {children}
-
-      {/* BOTTOM NAV */}
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex">
         {navItem("/dashboard", "Dashboard")}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
@@ -11,6 +11,17 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
 
   const router = useRouter();
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        router.push("/dashboard");
+      }
+    };
+
+    checkSession();
+  }, [router]);
 
   const sendOTP = async () => {
     if (phone.length !== 10) {
@@ -29,7 +40,7 @@ export default function Home() {
     setLoading(false);
 
     if (error) {
-      alert(error.message);
+      alert("Failed to send OTP");
     } else {
       setStep("otp");
     }
@@ -54,7 +65,12 @@ export default function Home() {
     setLoading(false);
 
     if (error) {
-      alert(error.message);
+      if (error.message.includes("expired")) {
+        alert("OTP expired. Please request a new OTP.");
+        setStep("phone");
+      } else {
+        alert("Wrong OTP");
+      }
     } else {
       router.push("/dashboard");
     }
@@ -63,7 +79,6 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-slate-900 flex items-center justify-center px-6">
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
-
         <h1 className="text-3xl font-bold text-slate-900 text-center mb-4">
           SmartUdhar
         </h1>
@@ -80,17 +95,13 @@ export default function Home() {
               </label>
 
               <div className="flex items-center bg-slate-100 rounded-xl px-4">
-                <span className="text-slate-500 text-sm mr-2">
-                  +91
-                </span>
+                <span className="text-slate-500 text-sm mr-2">+91</span>
 
                 <input
                   type="tel"
                   placeholder="Enter 10 digit number"
                   value={phone}
-                  onChange={(e) =>
-                    setPhone(e.target.value.replace(/\D/g, ""))
-                  }
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
                   maxLength={10}
                   className="w-full bg-transparent py-3 outline-none text-slate-800"
                 />
@@ -117,9 +128,7 @@ export default function Home() {
               type="text"
               placeholder="Enter 6 digit OTP"
               value={otp}
-              onChange={(e) =>
-                setOtp(e.target.value.replace(/\D/g, ""))
-              }
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
               maxLength={6}
               className="w-full bg-slate-200 rounded-xl px-4 py-3 mb-4 outline-none text-slate-900 font-medium"
             />
