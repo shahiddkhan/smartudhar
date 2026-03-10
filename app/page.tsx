@@ -9,20 +9,24 @@ export default function Home() {
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [loading, setLoading] = useState(false);
+  const [timer, setTimer] = useState(0);
 
   const router = useRouter();
 
+  // TIMER FOR RESEND OTP
   useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        router.push("/dashboard");
-      }
-    };
+    let interval: any;
 
-    checkSession();
-  }, [router]);
+    if (timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+    }
 
+    return () => clearInterval(interval);
+  }, [timer]);
+
+  // SEND OTP
   const sendOTP = async () => {
     if (phone.length !== 10) {
       alert("Enter valid 10 digit number");
@@ -41,11 +45,14 @@ export default function Home() {
 
     if (error) {
       alert("Failed to send OTP");
-    } else {
-      setStep("otp");
+      return;
     }
+
+    setStep("otp");
+    setTimer(30);
   };
 
+  // VERIFY OTP
   const verifyOTP = async () => {
     if (otp.length !== 6) {
       alert("Enter 6 digit OTP");
@@ -56,7 +63,7 @@ export default function Home() {
 
     const fullPhone = `+91${phone}`;
 
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       phone: fullPhone,
       token: otp,
       type: "sms",
@@ -65,15 +72,51 @@ export default function Home() {
     setLoading(false);
 
     if (error) {
-      if (error.message.includes("expired")) {
-        alert("OTP expired. Please request a new OTP.");
+      const message = error.message.toLowerCase();
+
+      if (message.includes("expired")) {
+        alert("OTP expired. Request a new OTP.");
         setStep("phone");
-      } else {
-        alert("Wrong OTP");
+        setOtp("");
+        return;
       }
-    } else {
+
+      if (message.includes("invalid")) {
+        alert("Wrong OTP");
+        setOtp("");
+        return;
+      }
+
+      alert("Verification failed");
+      return;
+    }
+
+    if (data.session) {
       router.push("/dashboard");
     }
+  };
+
+  // RESEND OTP
+  const resendOTP = async () => {
+    if (timer > 0) return;
+
+    setLoading(true);
+
+    const fullPhone = `+91${phone}`;
+
+    const { error } = await supabase.auth.signInWithOtp({
+      phone: fullPhone,
+    });
+
+    setLoading(false);
+
+    if (error) {
+      alert("Failed to resend OTP");
+      return;
+    }
+
+    setTimer(30);
+    alert("New OTP sent");
   };
 
   return (
@@ -82,6 +125,8 @@ export default function Home() {
         <h1 className="text-3xl font-bold text-slate-900 text-center mb-4">
           SmartUdhar
         </h1>
+
+        {/* PHONE STEP */}
 
         {step === "phone" && (
           <>
@@ -118,6 +163,8 @@ export default function Home() {
           </>
         )}
 
+        {/* OTP STEP */}
+
         {step === "otp" && (
           <>
             <p className="text-center text-slate-700 mb-6 font-medium">
@@ -140,6 +187,19 @@ export default function Home() {
             >
               {loading ? "Verifying..." : "Verify OTP"}
             </button>
+
+            <div className="text-center mt-4 text-sm text-slate-500">
+              {timer > 0 ? (
+                <p>Resend OTP in {timer}s</p>
+              ) : (
+                <button
+                  onClick={resendOTP}
+                  className="text-blue-600 font-medium"
+                >
+                  Resend OTP
+                </button>
+              )}
+            </div>
           </>
         )}
       </div>

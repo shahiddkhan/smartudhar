@@ -4,115 +4,167 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
+type Customer = {
+  id: number;
+  name: string;
+  phone: string | null;
+  transactions: {
+    amount: number;
+    type: "credit" | "debit";
+  }[];
+};
+
 export default function DashboardPage() {
   const router = useRouter();
 
-  const [loading, setLoading] = useState(true);
-  const [totalCustomers, setTotalCustomers] = useState(0);
-  const [udharDiya, setUdharDiya] = useState(0);
-  const [paiseAane, setPaiseAane] = useState(0);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
 
   useEffect(() => {
-    loadDashboard();
+    loadCustomers();
   }, []);
 
-  const loadDashboard = async () => {
-    const { data: sessionData } = await supabase.auth.getSession();
+  const loadCustomers = async () => {
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
 
-    if (!sessionData.session) {
-      router.push("/");
-      return;
-    }
+    if (!user) return;
 
-    const user = sessionData.session.user;
-
-    const { data: customers } = await supabase
+    const { data } = await supabase
       .from("customers")
-      .select("id")
+      .select(
+        `
+        id,
+        name,
+        phone,
+        transactions (
+          amount,
+          type
+        )
+      `,
+      )
       .eq("user_id", user.id)
       .eq("is_archived", false);
 
-    setTotalCustomers(customers?.length || 0);
-
-    const { data: transactions } = await supabase
-      .from("transactions")
-      .select("*")
-      .eq("user_id", user.id);
-
-    if (transactions) {
-      let credit = 0;
-      let debit = 0;
-
-      transactions.forEach((tx) => {
-        if (tx.type === "credit") credit += Number(tx.amount);
-        else debit += Number(tx.amount);
-      });
-
-      setUdharDiya(credit);
-      setPaiseAane(credit - debit);
+    if (data) {
+      setCustomers(data as Customer[]);
     }
-
-    setLoading(false);
   };
 
-  const formatMoney = (amount: number) =>
-    Number(amount).toLocaleString("en-IN");
+  const addCustomer = async () => {
+    if (!name) return;
 
-  if (loading) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-slate-100">
-        Loading...
-      </main>
-    );
-  }
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
+
+    if (!user) return;
+
+    await supabase.from("customers").insert({
+      name,
+      phone,
+      user_id: user.id,
+    });
+
+    setName("");
+    setPhone("");
+
+    loadCustomers();
+  };
+
+  const calculateBalance = (transactions: Customer["transactions"]) => {
+    let balance = 0;
+
+    for (const t of transactions) {
+      if (t.type === "credit") balance += t.amount;
+      else balance -= t.amount;
+    }
+
+    return balance;
+  };
+
+  const totalUdhar = customers.reduce((sum, c) => {
+    const bal = calculateBalance(c.transactions);
+
+    if (bal > 0) return sum + bal;
+
+    return sum;
+  }, 0);
 
   return (
-    <main className="min-h-screen w-full bg-slate-100 py-8 px-4">
-      <div className="max-w-md mx-auto space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-sm text-slate-600">SmartUdhar Overview</p>
-        </div>
+    <div className="p-4 space-y-6">
+      {/* BALANCE CARD */}
 
-        <div className="grid grid-cols-2 gap-4">
-          {/* Customers */}
+      <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-3xl p-6 shadow-lg">
+        <p className="text-sm text-slate-300">Total Udhar Baaki</p>
 
-          <div className="bg-white p-5 rounded-2xl shadow-sm">
-            <p className="text-sm text-slate-500">Customers</p>
-            <p className="text-xl font-bold text-slate-900">
-              {totalCustomers}
-            </p>
-          </div>
+        <h2 className="text-4xl font-bold mt-2">₹ {totalUdhar}</h2>
 
-          {/* Udhar Diya */}
+        <p className="text-xs text-slate-400 mt-1">Log jinse paise lene hai</p>
+      </div>
 
-          <div className="bg-white p-5 rounded-2xl shadow-sm">
-            <p className="text-sm text-slate-500">Udhar Diya</p>
-            <p className="text-xl font-bold text-red-500">
-              ₹ {formatMoney(udharDiya)}
-            </p>
-          </div>
+      {/* ADD CUSTOMER */}
 
-          {/* Log jinse paise aane hai */}
+      <div className="bg-slate-900 text-white rounded-2xl p-5 space-y-3 shadow">
+        <h3 className="font-semibold text-lg">Add Customer</h3>
 
-          <div className="bg-white p-5 rounded-2xl shadow-sm col-span-2">
-            <p className="text-sm text-slate-500">
-              Log jinse paise aane hai
-            </p>
+        <input
+          placeholder="Customer name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="w-full rounded-lg px-3 py-2 text-black"
+        />
 
-            <p className="text-xl font-bold text-green-600">
-              ₹ {formatMoney(paiseAane)}
-            </p>
-          </div>
-        </div>
+        <input
+          placeholder="Phone (optional)"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          className="w-full rounded-lg px-3 py-2 text-black"
+        />
 
         <button
-          onClick={() => router.push("/dashboard/customers")}
-          className="w-full bg-slate-900 text-white py-3 rounded-xl font-semibold"
+          onClick={addCustomer}
+          className="w-full bg-green-500 py-2 rounded-lg font-semibold"
         >
-          Manage Customers
+          Add Customer
         </button>
       </div>
-    </main>
+
+      {/* CUSTOMER LIST */}
+
+      <div className="space-y-3">
+        {customers.map((c) => {
+          const balance = calculateBalance(c.transactions);
+
+          return (
+            <div
+              key={c.id}
+              onClick={() => router.push(`/dashboard/customer/${c.id}`)}
+              className="bg-slate-900 text-white rounded-xl p-4 flex justify-between items-center shadow cursor-pointer hover:bg-slate-800 transition"
+            >
+              <div>
+                <p className="font-semibold text-lg">{c.name}</p>
+
+                {c.phone && <p className="text-xs text-slate-400">{c.phone}</p>}
+              </div>
+
+              <div className="text-right">
+                <p
+                  className={`font-bold text-lg ${
+                    balance > 0 ? "text-red-400" : "text-green-400"
+                  }`}
+                >
+                  ₹ {Math.abs(balance)}
+                </p>
+
+                <p className="text-xs text-slate-400">
+                  {balance > 0 ? "Udhar" : "Clear"}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
