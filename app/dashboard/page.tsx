@@ -4,14 +4,16 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
+type Transaction = {
+  amount: number;
+  type: "credit" | "debit";
+};
+
 type Customer = {
   id: number;
   name: string;
   phone: string | null;
-  transactions: {
-    amount: number;
-    type: "credit" | "debit";
-  }[];
+  transactions: Transaction[];
 };
 
 export default function DashboardPage() {
@@ -31,7 +33,7 @@ export default function DashboardPage() {
 
     if (!user) return;
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("customers")
       .select(
         `
@@ -42,10 +44,15 @@ export default function DashboardPage() {
           amount,
           type
         )
-      `
+      `,
       )
       .eq("user_id", user.id)
       .eq("is_archived", false);
+
+    if (error) {
+      console.error("Error loading customers:", error);
+      return;
+    }
 
     if (data) {
       setCustomers(data as Customer[]);
@@ -60,11 +67,16 @@ export default function DashboardPage() {
 
     if (!user) return;
 
-    await supabase.from("customers").insert({
+    const { error } = await supabase.from("customers").insert({
       name,
       phone,
       user_id: user.id,
     });
+
+    if (error) {
+      alert("Failed to add customer");
+      return;
+    }
 
     setName("");
     setPhone("");
@@ -72,21 +84,23 @@ export default function DashboardPage() {
     loadCustomers();
   };
 
-  const calculateBalance = (transactions: Customer["transactions"]) => {
-    let balance = 0;
-
-    for (const t of transactions) {
-      if (t.type === "credit") balance += t.amount;
-      else balance -= t.amount;
-    }
-
-    return balance;
+  // CORRECT LEDGER BALANCE CALCULATION
+  const calculateBalance = (transactions: Transaction[]) => {
+    return transactions.reduce((balance, t) => {
+      if (t.type === "credit") {
+        return balance + Number(t.amount);
+      } else {
+        return balance - Number(t.amount);
+      }
+    }, 0);
   };
 
-  const totalUdhar = customers.reduce((sum, c) => {
-    const bal = calculateBalance(c.transactions);
+  const totalUdhar = customers.reduce((sum, customer) => {
+    const balance = calculateBalance(customer.transactions);
 
-    if (bal > 0) return sum + bal;
+    if (balance > 0) {
+      return sum + balance;
+    }
 
     return sum;
   }, 0);
@@ -100,9 +114,7 @@ export default function DashboardPage() {
 
         <h2 className="text-4xl font-bold mt-2">₹ {totalUdhar}</h2>
 
-        <p className="text-xs text-slate-400 mt-1">
-          Log jinse paise lene hai
-        </p>
+        <p className="text-xs text-slate-400 mt-1">Log jinse paise lene hai</p>
       </div>
 
       {/* ADD CUSTOMER */}
@@ -135,20 +147,20 @@ export default function DashboardPage() {
       {/* CUSTOMER LIST */}
 
       <div className="space-y-3">
-        {customers.map((c) => {
-          const balance = calculateBalance(c.transactions);
+        {customers.map((customer) => {
+          const balance = calculateBalance(customer.transactions);
 
           return (
             <div
-              key={c.id}
-              onClick={() => router.push(`/dashboard/customers/${c.id}`)}
+              key={customer.id}
+              onClick={() => router.push(`/dashboard/customers/${customer.id}`)}
               className="bg-slate-900 text-white rounded-xl p-4 flex justify-between items-center shadow cursor-pointer hover:bg-slate-800 transition"
             >
               <div>
-                <p className="font-semibold text-lg">{c.name}</p>
+                <p className="font-semibold text-lg">{customer.name}</p>
 
-                {c.phone && (
-                  <p className="text-xs text-slate-400">{c.phone}</p>
+                {customer.phone && (
+                  <p className="text-xs text-slate-400">{customer.phone}</p>
                 )}
               </div>
 
