@@ -20,6 +20,9 @@ export default function DashboardPage() {
   const router = useRouter();
 
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
+  const [search, setSearch] = useState("");
+
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
 
@@ -27,13 +30,20 @@ export default function DashboardPage() {
     loadCustomers();
   }, []);
 
+  useEffect(() => {
+    const filtered = customers.filter((c) =>
+      c.name.toLowerCase().includes(search.toLowerCase()),
+    );
+    setFilteredCustomers(filtered);
+  }, [search, customers]);
+
   const loadCustomers = async () => {
     const { data: userData } = await supabase.auth.getUser();
     const user = userData.user;
 
     if (!user) return;
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("customers")
       .select(
         `
@@ -49,13 +59,9 @@ export default function DashboardPage() {
       .eq("user_id", user.id)
       .eq("is_archived", false);
 
-    if (error) {
-      console.error("Error loading customers:", error);
-      return;
-    }
-
     if (data) {
       setCustomers(data as Customer[]);
+      setFilteredCustomers(data as Customer[]);
     }
   };
 
@@ -67,16 +73,11 @@ export default function DashboardPage() {
 
     if (!user) return;
 
-    const { error } = await supabase.from("customers").insert({
+    await supabase.from("customers").insert({
       name,
       phone,
       user_id: user.id,
     });
-
-    if (error) {
-      alert("Failed to add customer");
-      return;
-    }
 
     setName("");
     setPhone("");
@@ -84,24 +85,16 @@ export default function DashboardPage() {
     loadCustomers();
   };
 
-  // CORRECT LEDGER BALANCE CALCULATION
   const calculateBalance = (transactions: Transaction[]) => {
     return transactions.reduce((balance, t) => {
-      if (t.type === "credit") {
-        return balance + Number(t.amount);
-      } else {
-        return balance - Number(t.amount);
-      }
+      if (t.type === "credit") return balance + Number(t.amount);
+      else return balance - Number(t.amount);
     }, 0);
   };
 
   const totalUdhar = customers.reduce((sum, customer) => {
     const balance = calculateBalance(customer.transactions);
-
-    if (balance > 0) {
-      return sum + balance;
-    }
-
+    if (balance > 0) return sum + balance;
     return sum;
   }, 0);
 
@@ -119,42 +112,54 @@ export default function DashboardPage() {
 
       {/* ADD CUSTOMER */}
 
-      <div className="bg-slate-900 text-white rounded-2xl p-5 space-y-3 shadow">
+      <div className="bg-slate-900 text-white rounded-2xl p-5 space-y-3 shadow-lg">
         <h3 className="font-semibold text-lg">Add Customer</h3>
 
         <input
+          type="text"
           placeholder="Customer name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-lg px-3 py-2 text-black"
+          className="w-full rounded-xl px-4 py-3 bg-slate-100 text-slate-900 placeholder:text-slate-500 outline-none"
         />
 
         <input
+          type="text"
           placeholder="Phone (optional)"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          className="w-full rounded-lg px-3 py-2 text-black"
+          className="w-full rounded-xl px-4 py-3 bg-slate-100 text-slate-900 placeholder:text-slate-500 outline-none"
         />
 
         <button
           onClick={addCustomer}
-          className="w-full bg-green-500 py-2 rounded-lg font-semibold"
+          className="w-full bg-green-500 hover:bg-green-600 transition py-3 rounded-xl font-semibold"
         >
           Add Customer
         </button>
       </div>
 
+      {/* SEARCH BAR */}
+
+      <input
+        type="text"
+        placeholder="Search customers..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="w-full px-4 py-3 rounded-xl bg-white border-2 border-slate-300 text-slate-900 placeholder:text-slate-500 outline-none shadow"
+      />
+
       {/* CUSTOMER LIST */}
 
       <div className="space-y-3">
-        {customers.map((customer) => {
+        {filteredCustomers.map((customer) => {
           const balance = calculateBalance(customer.transactions);
 
           return (
             <div
               key={customer.id}
               onClick={() => router.push(`/dashboard/customers/${customer.id}`)}
-              className="bg-slate-900 text-white rounded-xl p-4 flex justify-between items-center shadow cursor-pointer hover:bg-slate-800 transition"
+              className="bg-slate-900 text-white rounded-xl p-4 flex justify-between items-center shadow-md cursor-pointer hover:bg-slate-800 transition"
             >
               <div>
                 <p className="font-semibold text-lg">{customer.name}</p>
