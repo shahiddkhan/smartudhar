@@ -4,51 +4,41 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-interface Customer {
-  id: number;
-  name: string;
-}
-
 interface Transaction {
   id: number;
   amount: number;
   type: "credit" | "debit";
-  description: string;
+  description: string | null;
   created_at: string;
 }
 
 export default function CustomerDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const customerId = Number(params.id);
+  const customerId = params.id;
 
-  const [customer, setCustomer] = useState<Customer | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [name, setName] = useState("");
   const [balance, setBalance] = useState(0);
 
-  const [amount, setAmount] = useState("");
-  const [description, setDescription] = useState("");
-
   useEffect(() => {
-    if (customerId) {
-      fetchCustomer();
-      fetchTransactions();
-    }
-  }, [customerId]);
+    loadCustomer();
+    loadTransactions();
+  }, []);
 
-  const formatMoney = (value: number) => Number(value).toLocaleString("en-IN");
-
-  const fetchCustomer = async () => {
+  const loadCustomer = async () => {
     const { data } = await supabase
       .from("customers")
-      .select("id,name")
+      .select("name")
       .eq("id", customerId)
       .single();
 
-    if (data) setCustomer(data);
+    if (data) setName(data.name);
   };
 
-  const fetchTransactions = async () => {
+  const loadTransactions = async () => {
     const { data } = await supabase
       .from("transactions")
       .select("*")
@@ -57,155 +47,148 @@ export default function CustomerDetailPage() {
 
     if (data) {
       setTransactions(data);
-
-      const total = data.reduce((acc, tx) => {
-        return tx.type === "credit"
-          ? acc + Number(tx.amount)
-          : acc - Number(tx.amount);
-      }, 0);
-
-      setBalance(total);
+      calculateBalance(data);
     }
+  };
+
+  const calculateBalance = (data: Transaction[]) => {
+    let total = 0;
+
+    data.forEach((t) => {
+      if (t.type === "credit") total += t.amount;
+      else total -= t.amount;
+    });
+
+    setBalance(total);
   };
 
   const addTransaction = async (type: "credit" | "debit") => {
-    const numericAmount = Number(amount);
+    if (!amount) return;
 
-    if (!numericAmount || numericAmount <= 0) {
-      alert("Enter valid amount");
-      return;
-    }
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
 
-    const { data: sessionData } = await supabase.auth.getUser();
-    const user = sessionData.user;
+    if (!user) return;
 
-    await supabase.from("transactions").insert([
-      {
-        amount: numericAmount,
-        type,
-        description,
-        customer_id: customerId,
-        user_id: user?.id,
-      },
-    ]);
-
-    setAmount("");
-    setDescription("");
-
-    fetchTransactions();
-  };
-
-  const formatDate = (dateString: string) =>
-    new Date(dateString).toLocaleString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
+    await supabase.from("transactions").insert({
+      amount: Number(amount),
+      type,
+      description: note,
+      customer_id: customerId,
+      user_id: user.id,
     });
 
+    setAmount("");
+    setNote("");
+
+    loadTransactions();
+  };
+
+  const archiveCustomer = async () => {
+    const confirmArchive = confirm("Archive this customer?");
+    if (!confirmArchive) return;
+
+    await supabase
+      .from("customers")
+      .update({ is_archived: true })
+      .eq("id", customerId);
+
+    router.push("/dashboard");
+  };
+
   return (
-    <div className="min-h-screen bg-slate-100 pb-24">
+    <div className="max-w-md mx-auto p-4 space-y-6">
       {/* HEADER */}
 
-      <div className="sticky top-0 bg-white border-b shadow-sm">
-        <div className="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="text-slate-900 text-sm font-semibold"
+      <div className="flex justify-between items-center text-slate-700">
+        <button onClick={() => router.back()} className="font-medium">
+          ← Back
+        </button>
+
+        <div className="text-right">
+          <p className="text-xs text-slate-500">BALANCE</p>
+          <p
+            className={`font-bold ${
+              balance > 0 ? "text-red-500" : "text-green-500"
+            }`}
           >
-            ← Back
-          </button>
-
-          <div className="text-right">
-            <p className="text-xs text-slate-500 uppercase">Balance</p>
-
-            <p
-              className={`text-xl font-bold ${
-                balance > 0 ? "text-red-500" : "text-green-600"
-              }`}
-            >
-              ₹ {formatMoney(balance)}
-            </p>
-          </div>
+            ₹ {Math.abs(balance)}
+          </p>
         </div>
       </div>
 
-      <div className="max-w-md mx-auto px-4 py-6 space-y-6">
-        {/* ADD ENTRY */}
+      {/* TRANSACTION CARD */}
 
-        <div className="bg-white p-6 rounded-3xl shadow-md">
-          <p className="text-sm text-slate-500">Customer</p>
+      <div className="bg-white rounded-2xl p-6 shadow space-y-4">
+        <p className="text-sm text-slate-500">Customer</p>
 
-          <h2 className="text-xl font-bold text-slate-900 mb-5">
-            {customer?.name}
-          </h2>
+        <h2 className="text-xl font-bold text-slate-900">{name}</h2>
 
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
-            placeholder="Enter amount"
-            className="w-full p-4 mb-4 rounded-2xl bg-slate-50 border border-slate-200
-            text-lg font-semibold text-slate-900 placeholder:text-slate-400"
-          />
+        <input
+          placeholder="Enter amount"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className="w-full bg-slate-100 rounded-xl px-4 py-3 outline-none text-slate-900 font-medium"
+        />
 
-          <input
-            type="text"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Add note (optional)"
-            className="w-full p-4 mb-5 rounded-2xl bg-slate-50 border border-slate-200"
-          />
+        <input
+          placeholder="Optional note"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          className="w-full bg-slate-100 rounded-xl px-4 py-3 outline-none text-slate-900 font-medium"
+        />
 
-          <div className="grid grid-cols-2 gap-4">
-            <button
-              onClick={() => addTransaction("credit")}
-              className="bg-red-500 text-white py-4 rounded-2xl font-semibold"
-            >
-              + Udhar Liya
-            </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => addTransaction("credit")}
+            className="flex-1 bg-red-500 text-white py-3 rounded-lg font-semibold"
+          >
+            + Udhar Liya
+          </button>
 
-            <button
-              onClick={() => addTransaction("debit")}
-              className="bg-green-600 text-white py-4 rounded-2xl font-semibold"
-            >
-              − Udhar Diya
-            </button>
-          </div>
+          <button
+            onClick={() => addTransaction("debit")}
+            className="flex-1 bg-green-500 text-white py-3 rounded-lg font-semibold"
+          >
+            - Udhar Diya
+          </button>
         </div>
 
-        {/* LEDGER */}
-        <div className="space-y-3">
-          {transactions.map((tx) => (
-            <div
-              key={tx.id}
-              className="bg-white p-4 rounded-2xl shadow-sm flex justify-between"
-            >
-              <div>
-                <p className="text-xs text-slate-500">
-                  {formatDate(tx.created_at)}
-                </p>
+        <button
+          onClick={archiveCustomer}
+          className="w-full bg-slate-900 text-white py-3 rounded-lg font-medium"
+        >
+          Archive Customer
+        </button>
+      </div>
 
-                <p className="font-semibold text-slate-900">
-                  {tx.type === "credit" ? "Udhar Liya" : "Udhar Diya"}
-                </p>
+      {/* TRANSACTION LIST */}
 
-                {tx.description && (
-                  <p className="text-sm text-slate-500">{tx.description}</p>
-                )}
-              </div>
+      <div className="space-y-3">
+        {transactions.map((t) => (
+          <div
+            key={t.id}
+            className="bg-white rounded-xl p-4 shadow flex justify-between items-center"
+          >
+            <div>
+              <p className="text-xs text-slate-500">
+                {new Date(t.created_at).toLocaleString()}
+              </p>
 
-              <p
-                className={`text-lg font-bold ${
-                  tx.type === "credit" ? "text-red-500" : "text-green-600"
-                }`}
-              >
-                {tx.type === "credit" ? "+" : "-"} ₹ {formatMoney(tx.amount)}
+              <p className="font-medium text-slate-800">
+                {t.type === "credit" ? "Udhar Liya" : "Udhar Diya"}
               </p>
             </div>
-          ))}
-        </div>
+
+            <p
+              className={`font-bold ${
+                t.type === "credit" ? "text-red-500" : "text-green-500"
+              }`}
+            >
+              {t.type === "credit" ? "+" : "-"} ₹ {t.amount}
+            </p>
+          </div>
+        ))}
       </div>
     </div>
   );
