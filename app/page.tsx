@@ -13,6 +13,19 @@ export default function Home() {
 
   const router = useRouter();
 
+  // AUTO LOGIN IF SESSION EXISTS
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+
+      if (data.session) {
+        router.push("/dashboard");
+      }
+    };
+
+    checkSession();
+  }, [router]);
+
   // TIMER FOR RESEND OTP
   useEffect(() => {
     let interval: any;
@@ -127,7 +140,6 @@ export default function Home() {
         </h1>
 
         {/* PHONE STEP */}
-
         {step === "phone" && (
           <>
             <p className="text-center text-slate-600 mb-6 font-medium">
@@ -164,7 +176,6 @@ export default function Home() {
         )}
 
         {/* OTP STEP */}
-
         {step === "otp" && (
           <>
             <p className="text-center text-slate-700 mb-6 font-medium">

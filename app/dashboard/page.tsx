@@ -42,7 +42,7 @@ export default function DashboardPage() {
           amount,
           type
         )
-      `,
+      `
       )
       .eq("user_id", user.id)
       .eq("is_archived", false);
@@ -92,15 +92,17 @@ export default function DashboardPage() {
   }, 0);
 
   return (
-    <div className="p-4 space-y-6">
-      {/* BALANCE CARD */}
+    <div className="max-w-md mx-auto p-4 space-y-6">
+      {/* TOTAL BALANCE */}
 
       <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-3xl p-6 shadow-lg">
         <p className="text-sm text-slate-300">Total Udhar Baaki</p>
 
         <h2 className="text-4xl font-bold mt-2">₹ {totalUdhar}</h2>
 
-        <p className="text-xs text-slate-400 mt-1">Log jinse paise lene hai</p>
+        <p className="text-xs text-slate-400 mt-1">
+          Log jinse paise lene hai
+        </p>
       </div>
 
       {/* ADD CUSTOMER */}
@@ -139,13 +141,15 @@ export default function DashboardPage() {
           return (
             <div
               key={c.id}
-              onClick={() => router.push(`/dashboard/customer/${c.id}`)}
+              onClick={() => router.push(`/dashboard/customers/${c.id}`)}
               className="bg-slate-900 text-white rounded-xl p-4 flex justify-between items-center shadow cursor-pointer hover:bg-slate-800 transition"
             >
               <div>
                 <p className="font-semibold text-lg">{c.name}</p>
 
-                {c.phone && <p className="text-xs text-slate-400">{c.phone}</p>}
+                {c.phone && (
+                  <p className="text-xs text-slate-400">{c.phone}</p>
+                )}
               </div>
 
               <div className="text-right">

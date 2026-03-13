@@ -111,7 +111,7 @@ export default function CustomerDetailPage() {
       <div className="sticky top-0 bg-white border-b shadow-sm">
         <div className="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
           <button
-            onClick={() => router.push("/dashboard/customers")}
+            onClick={() => router.push("/dashboard")}
             className="text-slate-900 text-sm font-semibold"
           >
             ← Back
@@ -176,7 +176,6 @@ export default function CustomerDetailPage() {
         </div>
 
         {/* LEDGER */}
-
         <div className="space-y-3">
           {transactions.map((tx) => (
             <div
