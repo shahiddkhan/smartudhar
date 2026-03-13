@@ -60,8 +60,10 @@ export default function DashboardPage() {
       .eq("is_archived", false);
 
     if (data) {
-      setCustomers(data as Customer[]);
-      setFilteredCustomers(data as Customer[]);
+      const sorted = (data as Customer[]).reverse();
+
+      setCustomers(sorted);
+      setFilteredCustomers(sorted);
     }
   };
 
@@ -102,51 +104,48 @@ export default function DashboardPage() {
     <div className="max-w-md mx-auto p-4 space-y-6">
       {/* TOTAL BALANCE */}
 
-      <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-3xl p-6 shadow-lg">
-        <p className="text-sm text-slate-300">Total Udhar Baaki</p>
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
+        <p className="text-sm text-gray-500">Total Udhar Baaki</p>
 
-        <h2 className="text-4xl font-bold mt-2">₹ {totalUdhar}</h2>
+        <h2 className="text-3xl font-bold mt-1">₹ {totalUdhar}</h2>
 
-        <p className="text-xs text-slate-400 mt-1">Log jinse paise lene hai</p>
+        <p className="text-xs text-gray-400">Log jinse paise lene hai</p>
       </div>
 
       {/* ADD CUSTOMER */}
 
-      <div className="bg-slate-900 text-white rounded-2xl p-5 space-y-3 shadow-lg">
+      <div className="bg-white rounded-2xl p-5 space-y-3 shadow-sm border border-gray-200">
         <h3 className="font-semibold text-lg">Add Customer</h3>
 
         <input
-          type="text"
           placeholder="Customer name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-xl px-4 py-3 bg-slate-100 text-slate-900 placeholder:text-slate-500 outline-none"
+          className="w-full rounded-xl px-4 py-3 bg-gray-100 outline-none"
         />
 
         <input
-          type="text"
           placeholder="Phone (optional)"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
-          className="w-full rounded-xl px-4 py-3 bg-slate-100 text-slate-900 placeholder:text-slate-500 outline-none"
+          className="w-full rounded-xl px-4 py-3 bg-gray-100 outline-none"
         />
 
         <button
           onClick={addCustomer}
-          className="w-full bg-green-500 hover:bg-green-600 transition py-3 rounded-xl font-semibold"
+          className="w-full bg-blue-500 text-white py-3 rounded-xl font-semibold hover:bg-blue-600"
         >
           Add Customer
         </button>
       </div>
 
-      {/* SEARCH BAR */}
+      {/* SEARCH */}
 
       <input
-        type="text"
         placeholder="Search customers..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        className="w-full px-4 py-3 rounded-xl bg-white border-2 border-slate-300 text-slate-900 placeholder:text-slate-500 outline-none shadow"
+        className="w-full px-4 py-3 rounded-xl bg-white border border-gray-200 shadow-sm outline-none"
       />
 
       {/* CUSTOMER LIST */}
@@ -159,26 +158,26 @@ export default function DashboardPage() {
             <div
               key={customer.id}
               onClick={() => router.push(`/dashboard/customers/${customer.id}`)}
-              className="bg-slate-900 text-white rounded-xl p-4 flex justify-between items-center shadow-md cursor-pointer hover:bg-slate-800 transition"
+              className="bg-white rounded-xl p-4 flex justify-between items-center shadow-sm border border-gray-200 cursor-pointer"
             >
               <div>
-                <p className="font-semibold text-lg">{customer.name}</p>
+                <p className="font-semibold">{customer.name}</p>
 
                 {customer.phone && (
-                  <p className="text-xs text-slate-400">{customer.phone}</p>
+                  <p className="text-xs text-gray-500">{customer.phone}</p>
                 )}
               </div>
 
               <div className="text-right">
                 <p
-                  className={`font-bold text-lg ${
-                    balance > 0 ? "text-red-400" : "text-green-400"
+                  className={`font-bold ${
+                    balance > 0 ? "text-red-500" : "text-green-600"
                   }`}
                 >
                   ₹ {Math.abs(balance)}
                 </p>
 
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-gray-400">
                   {balance > 0 ? "Udhar" : "Clear"}
                 </p>
               </div>

@@ -63,6 +63,10 @@ export default function ArchivedPage() {
   };
 
   const restoreCustomer = async (id: number) => {
+    const confirmRestore = confirm("Remove from archive?");
+
+    if (!confirmRestore) return;
+
     await supabase
       .from("customers")
       .update({ is_archived: false })

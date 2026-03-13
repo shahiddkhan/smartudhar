@@ -10,6 +10,7 @@ interface Transaction {
   type: "credit" | "debit";
   description: string | null;
   created_at: string;
+  edited?: boolean;
 }
 
 export default function CustomerDetailPage() {
@@ -18,6 +19,9 @@ export default function CustomerDetailPage() {
   const customerId = params.id;
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [filtered, setFiltered] = useState<Transaction[]>([]);
+  const [search, setSearch] = useState("");
+
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [name, setName] = useState("");
@@ -27,6 +31,20 @@ export default function CustomerDetailPage() {
     loadCustomer();
     loadTransactions();
   }, []);
+
+  useEffect(() => {
+    const s = search.toLowerCase();
+
+    const filteredData = transactions.filter((t) => {
+      return (
+        t.amount.toString().includes(s) ||
+        (t.description || "").toLowerCase().includes(s) ||
+        t.type.toLowerCase().includes(s)
+      );
+    });
+
+    setFiltered(filteredData);
+  }, [search, transactions]);
 
   const loadCustomer = async () => {
     const { data } = await supabase
@@ -47,6 +65,7 @@ export default function CustomerDetailPage() {
 
     if (data) {
       setTransactions(data);
+      setFiltered(data);
       calculateBalance(data);
     }
   };
@@ -65,6 +84,12 @@ export default function CustomerDetailPage() {
   const addTransaction = async (type: "credit" | "debit") => {
     if (!amount) return;
 
+    const confirmAction = confirm(
+      `${type === "credit" ? "Udhar Liya" : "Udhar Diya"} ₹${amount} ?`,
+    );
+
+    if (!confirmAction) return;
+
     const { data: userData } = await supabase.auth.getUser();
     const user = userData.user;
 
@@ -80,6 +105,24 @@ export default function CustomerDetailPage() {
 
     setAmount("");
     setNote("");
+
+    loadTransactions();
+  };
+
+  const editTransaction = async (t: Transaction) => {
+    const newAmount = prompt("Edit amount", t.amount.toString());
+    if (!newAmount) return;
+
+    const newNote = prompt("Edit note", t.description || "");
+
+    await supabase
+      .from("transactions")
+      .update({
+        amount: Number(newAmount),
+        description: newNote,
+        edited: true,
+      })
+      .eq("id", t.id);
 
     loadTransactions();
   };
@@ -121,34 +164,33 @@ export default function CustomerDetailPage() {
 
       <div className="bg-white rounded-2xl p-6 shadow space-y-4">
         <p className="text-sm text-slate-500">Customer</p>
-
         <h2 className="text-xl font-bold text-slate-900">{name}</h2>
 
         <input
           placeholder="Enter amount"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          className="w-full bg-slate-100 rounded-xl px-4 py-3 outline-none text-slate-900 font-medium"
+          className="w-full bg-slate-100 rounded-xl px-4 py-3 outline-none"
         />
 
         <input
           placeholder="Optional note"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="w-full bg-slate-100 rounded-xl px-4 py-3 outline-none text-slate-900 font-medium"
+          className="w-full bg-slate-100 rounded-xl px-4 py-3 outline-none"
         />
 
         <div className="flex gap-3">
           <button
             onClick={() => addTransaction("credit")}
-            className="flex-1 bg-red-500 text-white py-3 rounded-lg font-semibold"
+            className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold"
           >
             + Udhar Liya
           </button>
 
           <button
             onClick={() => addTransaction("debit")}
-            className="flex-1 bg-green-500 text-white py-3 rounded-lg font-semibold"
+            className="flex-1 bg-red-600 text-white py-3 rounded-lg font-semibold"
           >
             - Udhar Diya
           </button>
@@ -156,19 +198,29 @@ export default function CustomerDetailPage() {
 
         <button
           onClick={archiveCustomer}
-          className="w-full bg-slate-900 text-white py-3 rounded-lg font-medium"
+          className="w-full bg-slate-900 text-white py-3 rounded-lg"
         >
           Archive Customer
         </button>
       </div>
 
-      {/* TRANSACTION LIST */}
+      {/* SEARCH */}
+
+      <input
+        placeholder="Search transactions..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="w-full px-4 py-3 rounded-xl border border-slate-300 outline-none"
+      />
+
+      {/* TRANSACTIONS */}
 
       <div className="space-y-3">
-        {transactions.map((t) => (
+        {filtered.map((t) => (
           <div
             key={t.id}
-            className="bg-white rounded-xl p-4 shadow flex justify-between items-center"
+            onClick={() => editTransaction(t)}
+            className="bg-white rounded-xl p-4 shadow flex justify-between items-center cursor-pointer"
           >
             <div>
               <p className="text-xs text-slate-500">
@@ -177,7 +229,14 @@ export default function CustomerDetailPage() {
 
               <p className="font-medium text-slate-800">
                 {t.type === "credit" ? "Udhar Liya" : "Udhar Diya"}
+                {t.edited && (
+                  <span className="text-xs text-gray-400 ml-2">(edited)</span>
+                )}
               </p>
+
+              {t.description && (
+                <p className="text-xs text-slate-500">{t.description}</p>
+              )}
             </div>
 
             <p

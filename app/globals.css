@@ -1,4 +1,4 @@
-@import "tailwindcss";
+/* @import "tailwindcss";
 
 :root {
   --background: #ffffff;
@@ -31,4 +31,26 @@ body {
   background: #000;
   color: #fff;
   font-family: Inter, Arial, Helvetica, sans-serif;
+} */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
+
+/* COLOR SYSTEM */
+
+:root {
+  --background: #F5F5F7;
+  --card: #FFFFFF;
+  --border: #E5E5EA;
+  --text-primary: #111111;
+  --text-secondary: #6B7280;
+  --success: #16A34A;
+  --danger: #DC2626;
+  --primary: #3B82F6;
+}
+
+body {
+  background: var(--background);
+  color: var(--text-primary);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
 }

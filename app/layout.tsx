@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     icon: "/icon.png",
     apple: "/apple-icon.png",
   },
-  themeColor: "#0f172a",
+  themeColor: "#F5F5F7",
 };
 
 export default function RootLayout({
@@ -18,7 +18,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-slate-100">{children}</body>
+      <body className="bg-[#F5F5F7] text-[#111111]">{children}</body>
     </html>
   );
 }
