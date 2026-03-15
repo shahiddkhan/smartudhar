@@ -1,19 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
-  const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState("");
-  const [step, setStep] = useState<"phone" | "otp">("phone");
-  const [loading, setLoading] = useState(false);
-  const [timer, setTimer] = useState(0);
-
   const router = useRouter();
 
-  // AUTO LOGIN IF SESSION EXISTS
+  // AUTO LOGIN CHECK
   useEffect(() => {
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession();
@@ -26,193 +20,30 @@ export default function Home() {
     checkSession();
   }, [router]);
 
-  // TIMER FOR RESEND OTP
-  useEffect(() => {
-    let interval: any;
-
-    if (timer > 0) {
-      interval = setInterval(() => {
-        setTimer((prev) => prev - 1);
-      }, 1000);
-    }
-
-    return () => clearInterval(interval);
-  }, [timer]);
-
-  // SEND OTP
-  const sendOTP = async () => {
-    if (phone.length !== 10) {
-      alert("Enter valid 10 digit number");
-      return;
-    }
-
-    setLoading(true);
-
-    const fullPhone = `+91${phone}`;
-
-    const { error } = await supabase.auth.signInWithOtp({
-      phone: fullPhone,
-    });
-
-    setLoading(false);
-
-    if (error) {
-      alert("Failed to send OTP");
-      return;
-    }
-
-    setStep("otp");
-    setTimer(30);
-  };
-
-  // VERIFY OTP
-  const verifyOTP = async () => {
-    if (otp.length !== 6) {
-      alert("Enter 6 digit OTP");
-      return;
-    }
-
-    setLoading(true);
-
-    const fullPhone = `+91${phone}`;
-
-    const { data, error } = await supabase.auth.verifyOtp({
-      phone: fullPhone,
-      token: otp,
-      type: "sms",
-    });
-
-    setLoading(false);
-
-    if (error) {
-      const message = error.message.toLowerCase();
-
-      if (message.includes("expired")) {
-        alert("OTP expired. Request a new OTP.");
-        setStep("phone");
-        setOtp("");
-        return;
-      }
-
-      if (message.includes("invalid")) {
-        alert("Wrong OTP");
-        setOtp("");
-        return;
-      }
-
-      alert("Verification failed");
-      return;
-    }
-
-    if (data.session) {
-      router.push("/dashboard");
-    }
-  };
-
-  // RESEND OTP
-  const resendOTP = async () => {
-    if (timer > 0) return;
-
-    setLoading(true);
-
-    const fullPhone = `+91${phone}`;
-
-    const { error } = await supabase.auth.signInWithOtp({
-      phone: fullPhone,
-    });
-
-    setLoading(false);
-
-    if (error) {
-      alert("Failed to resend OTP");
-      return;
-    }
-
-    setTimer(30);
-    alert("New OTP sent");
-  };
-
   return (
     <main className="min-h-screen bg-slate-900 flex items-center justify-center px-6">
-      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
-        <h1 className="text-3xl font-bold text-slate-900 text-center mb-4">
-          SmartUdhar
-        </h1>
+      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md text-center">
+        <h1 className="text-3xl font-bold text-slate-900 mb-6">SmartUdhar</h1>
 
-        {/* PHONE STEP */}
-        {step === "phone" && (
-          <>
-            <p className="text-center text-slate-600 mb-6 font-medium">
-              Enter your mobile number
-            </p>
+        <p className="text-slate-600 mb-8">Simple Udhar Management</p>
 
-            <div className="mb-4">
-              <label className="block text-sm text-slate-600 mb-2">
-                Mobile Number
-              </label>
+        {/* LOGIN BUTTON */}
 
-              <div className="flex items-center bg-slate-100 rounded-xl px-4">
-                <span className="text-slate-500 text-sm mr-2">+91</span>
+        <button
+          onClick={() => router.push("/login")}
+          className="w-full bg-slate-900 text-white py-3 rounded-lg font-medium hover:bg-black transition mb-4"
+        >
+          Login
+        </button>
 
-                <input
-                  type="tel"
-                  placeholder="Enter 10 digit number"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                  maxLength={10}
-                  className="w-full bg-transparent py-3 outline-none text-slate-800"
-                />
-              </div>
-            </div>
+        {/* CREATE ACCOUNT BUTTON */}
 
-            <button
-              onClick={sendOTP}
-              disabled={loading}
-              className="w-full bg-slate-900 text-white py-3 rounded-lg font-medium hover:bg-black transition disabled:opacity-50"
-            >
-              {loading ? "Sending..." : "Send OTP"}
-            </button>
-          </>
-        )}
-
-        {/* OTP STEP */}
-        {step === "otp" && (
-          <>
-            <p className="text-center text-slate-700 mb-6 font-medium">
-              Enter OTP sent to +91{phone}
-            </p>
-
-            <input
-              type="text"
-              placeholder="Enter 6 digit OTP"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-              maxLength={6}
-              className="w-full bg-slate-200 rounded-xl px-4 py-3 mb-4 outline-none text-slate-900 font-medium"
-            />
-
-            <button
-              onClick={verifyOTP}
-              disabled={loading}
-              className="w-full bg-slate-900 text-white py-3 rounded-lg font-medium hover:bg-black transition disabled:opacity-50"
-            >
-              {loading ? "Verifying..." : "Verify OTP"}
-            </button>
-
-            <div className="text-center mt-4 text-sm text-slate-500">
-              {timer > 0 ? (
-                <p>Resend OTP in {timer}s</p>
-              ) : (
-                <button
-                  onClick={resendOTP}
-                  className="text-blue-600 font-medium"
-                >
-                  Resend OTP
-                </button>
-              )}
-            </div>
-          </>
-        )}
+        <button
+          onClick={() => router.push("/signup")}
+          className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition"
+        >
+          Create Account
+        </button>
       </div>
     </main>
   );
