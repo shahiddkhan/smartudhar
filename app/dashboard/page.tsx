@@ -23,8 +23,12 @@ export default function DashboardPage() {
   const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
 
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [mode, setMode] = useState<"select" | "credit" | "debit">("select");
+
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [amount, setAmount] = useState("");
 
   useEffect(() => {
     loadCustomers();
@@ -61,30 +65,9 @@ export default function DashboardPage() {
 
     if (data) {
       const sorted = (data as Customer[]).reverse();
-
       setCustomers(sorted);
       setFilteredCustomers(sorted);
     }
-  };
-
-  const addCustomer = async () => {
-    if (!name) return;
-
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData.user;
-
-    if (!user) return;
-
-    await supabase.from("customers").insert({
-      name,
-      phone,
-      user_id: user.id,
-    });
-
-    setName("");
-    setPhone("");
-
-    loadCustomers();
   };
 
   const calculateBalance = (transactions: Transaction[]) => {
@@ -100,42 +83,67 @@ export default function DashboardPage() {
     return sum;
   }, 0);
 
+  const saveEntry = async (type: "credit" | "debit") => {
+    if (!name || !amount) return;
+
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
+
+    if (!user) return;
+
+    const { data } = await supabase
+      .from("customers")
+      .insert({
+        name,
+        phone,
+        user_id: user.id,
+      })
+      .select()
+      .single();
+
+    const customerId = data.id;
+
+    await supabase.from("transactions").insert({
+      customer_id: customerId,
+      amount: Number(amount),
+      type,
+      user_id: user.id,
+    });
+
+    setSheetOpen(false);
+    setMode("select");
+    setName("");
+    setPhone("");
+    setAmount("");
+
+    router.push(`/dashboard/customers/${customerId}`);
+  };
+
+  const closeSheet = () => {
+    setSheetOpen(false);
+    setMode("select");
+  };
+
   return (
-    <div className="max-w-md mx-auto p-4 space-y-6">
+    <div className="max-w-md mx-auto p-4 space-y-6 relative">
       {/* TOTAL BALANCE */}
 
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
         <p className="text-sm text-gray-500">Total Udhar Baaki</p>
-
         <h2 className="text-3xl font-bold mt-1">₹ {totalUdhar}</h2>
-
         <p className="text-xs text-gray-400">Log jinse paise lene hai</p>
       </div>
 
-      {/* ADD CUSTOMER */}
+      {/* ADD ENTRY */}
 
       <div className="bg-white rounded-2xl p-5 space-y-3 shadow-sm border border-gray-200">
-        <h3 className="font-semibold text-lg">Add Customer</h3>
-
-        <input
-          placeholder="Customer name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-xl px-4 py-3 bg-gray-100 outline-none"
-        />
-
-        <input
-          placeholder="Phone (optional)"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          className="w-full rounded-xl px-4 py-3 bg-gray-100 outline-none"
-        />
+        <h3 className="font-semibold text-lg">Add Entry</h3>
 
         <button
-          onClick={addCustomer}
-          className="w-full bg-blue-500 text-white py-3 rounded-xl font-semibold hover:bg-blue-600"
+          onClick={() => setSheetOpen(true)}
+          className="w-full bg-blue-500 text-white py-3 rounded-xl font-semibold"
         >
-          Add Customer
+          Add Entry
         </button>
       </div>
 
@@ -154,6 +162,17 @@ export default function DashboardPage() {
         {filteredCustomers.map((customer) => {
           const balance = calculateBalance(customer.transactions);
 
+          let label = "Clear";
+          let color = "text-gray-500";
+
+          if (balance > 0) {
+            label = "Udhar Liya";
+            color = "text-red-500";
+          } else if (balance < 0) {
+            label = "Udhar Diya";
+            color = "text-green-600";
+          }
+
           return (
             <div
               key={customer.id}
@@ -169,22 +188,111 @@ export default function DashboardPage() {
               </div>
 
               <div className="text-right">
-                <p
-                  className={`font-bold ${
-                    balance > 0 ? "text-red-500" : "text-green-600"
-                  }`}
-                >
-                  ₹ {Math.abs(balance)}
-                </p>
+                <p className={`font-bold ${color}`}>₹ {Math.abs(balance)}</p>
 
-                <p className="text-xs text-gray-400">
-                  {balance > 0 ? "Udhar" : "Clear"}
-                </p>
+                <p className="text-xs text-gray-400">{label}</p>
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* FLOATING BUTTON */}
+
+      <button
+        onClick={() => router.push("/dashboard/customers")}
+        className="fixed bottom-20 right-5 bg-blue-500 text-white px-4 py-3 rounded-full shadow-lg"
+      >
+        + Add Customer
+      </button>
+
+      {/* BOTTOM SHEET */}
+
+      {sheetOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-end justify-center z-50">
+          <div
+            className="bg-white w-full max-w-md rounded-t-2xl p-6 space-y-4"
+            style={{
+              animation: "slideUp 0.3s ease-out",
+            }}
+          >
+            {mode === "select" && (
+              <>
+                <button
+                  onClick={() => setMode("credit")}
+                  className="w-full bg-green-600 text-white py-3 rounded-xl"
+                >
+                  Udhar Liya
+                </button>
+
+                <button
+                  onClick={() => setMode("debit")}
+                  className="w-full bg-red-600 text-white py-3 rounded-xl"
+                >
+                  Udhar Diya
+                </button>
+
+                <button
+                  onClick={closeSheet}
+                  className="w-full bg-gray-200 text-gray-700 py-3 rounded-xl"
+                >
+                  Back
+                </button>
+              </>
+            )}
+
+            {(mode === "credit" || mode === "debit") && (
+              <>
+                <input
+                  placeholder="Customer name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full bg-gray-100 px-4 py-3 rounded-xl"
+                />
+
+                <input
+                  placeholder="Phone (optional)"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full bg-gray-100 px-4 py-3 rounded-xl"
+                />
+
+                <input
+                  placeholder="Amount"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="w-full bg-gray-100 px-4 py-3 rounded-xl"
+                />
+
+                <button
+                  onClick={() => saveEntry(mode)}
+                  className="w-full bg-blue-500 text-white py-3 rounded-xl"
+                >
+                  Save
+                </button>
+
+                <button
+                  onClick={closeSheet}
+                  className="w-full bg-gray-200 text-gray-700 py-3 rounded-xl"
+                >
+                  Back
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes slideUp {
+          from {
+            transform: translateY(100%);
+          }
+          to {
+            transform: translateY(0%);
+          }
+        }
+      `}</style>
     </div>
   );
 }
