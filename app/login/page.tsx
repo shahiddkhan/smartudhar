@@ -1,26 +1,44 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
-export default function LoginPage() {
+export default function Login() {
   const router = useRouter();
 
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
 
+  // AUTO LOGIN IF SESSION EXISTS
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+
+      if (data.session) {
+        router.push("/dashboard");
+      }
+    };
+
+    checkSession();
+  }, [router]);
+
   const login = async () => {
-    if (!phone || !password) {
-      alert("Enter phone and password");
+    if (phone.length !== 10) {
+      alert("Enter valid 10 digit phone number");
       return;
     }
 
-    const email = `${phone}@smartudhar.com`;
+    if (!password) {
+      alert("Enter password");
+      return;
+    }
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const fullPhone = `+91${phone}`;
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      phone: fullPhone,
+      password: password,
     });
 
     if (error) {
@@ -28,7 +46,9 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
+    if (data.session) {
+      router.push("/dashboard");
+    }
   };
 
   return (
@@ -36,25 +56,32 @@ export default function LoginPage() {
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
         <h1 className="text-3xl font-bold text-center mb-6">Login</h1>
 
+        {/* PHONE */}
+
         <input
           type="tel"
-          placeholder="Phone Number"
+          placeholder="Enter phone number"
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+          onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+          maxLength={10}
           className="w-full bg-slate-100 rounded-xl px-4 py-3 mb-4 outline-none"
         />
+
+        {/* PASSWORD */}
 
         <input
           type="password"
-          placeholder="Password"
+          placeholder="Enter password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full bg-slate-100 rounded-xl px-4 py-3 mb-4 outline-none"
+          className="w-full bg-slate-100 rounded-xl px-4 py-3 mb-6 outline-none"
         />
+
+        {/* LOGIN BUTTON */}
 
         <button
           onClick={login}
-          className="w-full bg-slate-900 text-white py-3 rounded-lg"
+          className="w-full bg-slate-900 text-white py-3 rounded-lg font-medium hover:bg-black transition"
         >
           Login
         </button>
